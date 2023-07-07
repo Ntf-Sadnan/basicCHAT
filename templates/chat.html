@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <title>CHATGB</title>
+   <link rel="stylesheet" type="text/css" href="/styles.css">
+
+</head>
+<body>
+   <h1>Welcome, {{ username }}</h1>
+   <div id="messages">
+      {% for entry in chat_history %}
+         <p data-id="{{ entry.id }}">{{ entry.username }}: {{ entry.message }}</p>
+      {% endfor %}
+   </div>
+   <form id="message-form">
+      <input type="text" id="message" autocomplete="off">
+      <input type="submit" value="Send">
+   </form>
+   <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+   <script>
+      var socket = io();
+      var form = document.getElementById('message-form');
+      var messageInput = document.getElementById('message');
+      var messageContainer = document.getElementById('messages');
+      var room = 'chatroom';
+
+      socket.emit('join', {'username': '{{ username }}', 'room': room});
+
+      form.addEventListener('submit', function(e) {
+         e.preventDefault();
+         var message = messageInput.value;
+         socket.emit('chat message', {'username': '{{ username }}', 'message': message, 'room': room});
+         messageInput.value = '';
+      });
+
+      socket.on('chat message', function(data) {
+         var messageElement = document.createElement('p');
+         messageElement.textContent = data.username + ': ' + data.message;
+         messageElement.dataset.id = data.id;
+         messageContainer.appendChild(messageElement);
+      });
+
+      socket.on('user joined', function(username) {
+         var messageElement = document.createElement('p');
+         messageElement.textContent = username + ' joined the chat';
+         messageContainer.appendChild(messageElement);
+      });
+
+      socket.on('user left', function(username) {
+         var messageElement = document.createElement('p');
+         messageElement.textContent = username + ' left the chat';
+         messageContainer.appendChild(messageElement);
+      });
+
+      socket.on('last message', function(lastMessageId) {
+         // Remove the duplicate messages
+         var messageElements = messageContainer.getElementsByTagName('p');
+         for (var i = messageElements.length - 1; i >= 0; i--) {
+            var messageElement = messageElements[i];
+            if (messageElement.dataset.id <= lastMessageId) {
+               break;
+            }
+            messageElement.remove();
+         }
+      });
+
+      socket.on('connect', function() {
+         // Request the last message ID received by the user after connecting
+         socket.emit('join', {'username': '{{ username }}', 'room': room});
+      });
+   </script>
+</body>
+</html>
